@@ -19,6 +19,24 @@ export const DAYS = [
   'Финал: та же история двух пользователей, без сброса',
   'Бонус NestJS: тот же API-контракт и данные',
 ];
+export function printMenu(log = console.log) {
+  log('');
+  log('=== Job Tracker · подготовка практики ===');
+  DAYS.forEach((title, i) => log(`${i}. ${title}`));
+  log('');
+  [
+    "I. Установить зависимости",
+    "U. Запустить PostgreSQL/Redis/Adminer",
+    "D. Диагностика",
+    "N. Набор N+1",
+    "X. 100000 вакансий для индексов",
+    "M. Пустая БД миграций",
+    "E. Три экспорта через API",
+    "T. 20 GET для метрик",
+    "C. Показать учебные данные входа",
+    "Q. Выход",
+  ].forEach(label => log(label));
+}
 function loadLocalEnv() {
   try { loadEnvFile(path.join(ROOT,'.env')); }
   catch(error) { if(error.code!=='ENOENT') throw new LabError('Не удалось прочитать .env.'); }
@@ -125,9 +143,7 @@ export async function main(args=process.argv.slice(2)) {
   const rl=createInterface({input:stdin,output:stdout});
   try {
     while(true) {
-      console.log('\n=== Job Tracker · подготовка практики ===');
-      DAYS.forEach((title,i)=>console.log(`${i}. ${title}`));
-      console.log('I. Установить зависимости   U. Запустить PostgreSQL/Redis/Adminer\nD. Диагностика   N. Набор N+1   X. 100000 вакансий для индексов\nM. Пустая БД миграций   E. Три экспорта через API   T. 20 GET для метрик\nC. Показать учебные данные входа   Q. Выход');
+      printMenu();
       const answer=(await rl.question('Выбери пункт: ')).trim().toLowerCase();
       if(answer==='q') break;
       const command=/^[0-8]$/.test(answer)?['prepare',answer]:{

@@ -138,3 +138,19 @@ test('PostgreSQL: additive data, constraints, rollback, real IDs and no lost stu
     assert.deepEqual((await prepareDataset(config,'indexes',100000)).added,{users:0,jobs:0,applications:0});
   } finally {await client.end();await rm(dir,{recursive:true,force:true});}
 });
+
+// Menu entries must not depend on the terminal width or automatic wrapping.
+test('Menu prints every numbered and lettered choice on a separate line', async () => {
+  const { printMenu, DAYS } = await import('../../scripts/lab/index.mjs');
+  const lines = [];
+  printMenu(line => lines.push(line));
+  const options = lines.filter(line => /^[0-8A-Z]\. /.test(line));
+  const expected = [...DAYS.map((_, i) => String(i)), 'I', 'U', 'D', 'N', 'X', 'M', 'E', 'T', 'C', 'Q'];
+  assert.deepEqual(options.map(line => line.split('.')[0]), expected);
+  for (const line of options) {
+    assert.doesNotMatch(line, /[\r\n]/, 'Each call must contain exactly one menu line');
+    assert.doesNotMatch(line, /\\[rn]/, 'Never print escaped newline text');
+    assert.equal((line.match(/(?:^|\s)[0-8A-Z]\. /g) || []).length, 1, 'Do not group multiple choices on one line');
+  }
+  assert.equal(lines[lines.indexOf('I. Установить зависимости') - 1], '', 'Separate days from utility commands');
+});
