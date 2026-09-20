@@ -104,7 +104,12 @@ async function action(name,args=[]) {
   }
   if(name==='up') {
     await initializeFiles(); loadLocalEnv();settings();
-    await run('docker',['compose','up','-d','--wait','postgres','redis','adminer']);return;
+    await run('docker',['compose','up','-d','--wait','postgres','redis','adminer']);
+    const binding = await run('docker',['compose','port','adminer','8080'],true);
+    if (!binding.trim()) throw new LabError('Adminer запущен, но порт не опубликован. Проверь конфликт портов; задай свободный ADMINER_PORT в .env и пересоздай только adminer.');
+    console.log(`Adminer: http://${binding.trim()}`);
+    console.log('Если по этому адресу отвечает другое приложение, см. docs/lab-preparation.md — раздел про порт Adminer.');
+    return;
   }
   if(name==='migration-db') return migrationDatabase();
   if(name==='stream') { console.log(await prepareStreamFile());return; }

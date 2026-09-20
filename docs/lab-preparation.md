@@ -83,3 +83,28 @@ M создаёт только **пустую** БД `job_tracker_lab_migrations`
 Интеграционный тест требует **одноразовую** `job_tracker_lab_test`, `LAB_TEST_DATABASE_URL` и явный `LAB_ALLOW_TEST_RESET=YES`. Только он имеет право пересоздавать её тестовую схему из `tests/lab/fixture.sql`. Fixture не применяется ни при старте, ни при подготовке дней. Без этих настроек реальный PostgreSQL-тест пропускается, что видно в отчёте.
 
 Официальные источники: [воспроизводимость Faker](https://fakerjs.dev/guide/usage#reproducible-results), [транзакции node-postgres](https://node-postgres.com/features/transactions), [встроенное меню readline](https://nodejs.org/api/readline.html).
+
+## Adminer: занят порт или страница показывает Cannot GET /
+
+По умолчанию Adminer опубликован на `http://127.0.0.1:8080`. Если здесь отвечает другой сервер (например, `Cannot GET /`), это ещё не ошибка Adminer: порт может быть занят приложением Windows, даже когда проект запущен в WSL. Сначала проверь `docker compose ps adminer` и `docker compose port adminer 8080`. Запись только `8080/tcp` без адреса хоста не подтверждает публикацию порта.
+
+Выбери свободный порт, например 8090. В `.env` **активной копии проекта** добавь или измени одну настройку:
+
+```dotenv
+ADMINER_PORT=8090
+```
+
+Затем из этой же папки пересоздай только веб-интерфейс:
+
+```bash
+docker compose up -d --no-deps --force-recreate adminer
+docker compose port adminer 8080
+```
+
+При выводе `127.0.0.1:8090` открывай `http://127.0.0.1:8090`. Если этот порт также занят, выбери другой. Новый пункт U печатает адрес из фактической публикации Docker, а не жёстко заданное 8080. Перезапусти меню после изменения `.env`.
+
+В `127.0.0.1:8090:8080` первый порт — для браузера на компьютере, второй — порт внутри контейнера. Внутренний порт 8080 менять не нужно. Не запускай `down -v` и не останавливай посторонние программы ради конфликта Adminer: PostgreSQL, Redis и их данные для этой правки не затрагиваются.
+
+На странице входа выбирай PostgreSQL, сервер `postgres`, базу `job_tracker`, пользователя и пароль из учебной конфигурации Compose. `postgres` здесь — имя соседнего сервиса в Docker, не адрес браузера. В исходном учебном Compose логин и пароль — `app`; при собственной настройке используй свои значения.
+
+Документация: [Docker — публикация портов](https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/), [WSL — доступ к сетевым приложениям](https://learn.microsoft.com/en-us/windows/wsl/networking).
