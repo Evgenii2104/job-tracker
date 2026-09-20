@@ -44,15 +44,15 @@ npm run dev
 
 `npm ci` ставит версии из `package-lock.json`. `up -d --wait` запускает контейнеры и ждёт их готовности. `db:check` проверяет подключение; отсутствие таблиц до Дня 1 нормально. Redis должен ответить `PONG`.
 
-Открой http://localhost:3000/health: ожидается JSON со `status: "ok"` и `databaseTime`. Открой http://localhost:8080: система PostgreSQL, сервер `postgres`, пользователь `app`, пароль `app`, база `job_tracker`.
+Открой http://localhost:3000/health: ожидается JSON со `status: "ok"` и `databaseTime`. **Adminer открывай по адресу из строки `Adminer: http://…`, которую выводит пункт U.** При ручном запуске узнай адрес командой `docker compose port adminer 8080` и добавь префикс `http://`: например, вывод `127.0.0.1:8090` означает `http://127.0.0.1:8090`. Должна появиться форма входа Adminer. В ней выбери PostgreSQL, сервер `postgres`, пользователя `app`, пароль `app`, базу `job_tracker`.
 
-Порт API — 3000, PostgreSQL — 5432, Redis — 6379, Adminer — 8080. В `.env` Node использует `localhost`, а Adminer внутри Docker — имя сервиса `postgres`. Пароль `app` предназначен только для локальной учебной среды. Не подставляй production DATABASE_URL.
+Порты по умолчанию: API — 3000, PostgreSQL — 5432, Redis — 6379. **Внешний порт Adminer задаётся `ADMINER_PORT` в `.env` (по умолчанию 8080)**, внутренний порт контейнера остаётся 8080. Свободный порт автоматически не выбирается: при конфликте измени только `ADMINER_PORT`, например на 8090, и пересоздай Adminer по [инструкции](docs/lab-preparation.md#adminer-занят-порт-или-страница-показывает-cannot-get-). В `.env` Node использует `localhost`, а Adminer внутри Docker — имя сервиса `postgres`. Пароль `app` предназначен только для локальной учебной среды. Не подставляй production DATABASE_URL.
 
 Готово, если API вернул время из БД, Redis ответил `PONG`, а typecheck завершился без ошибок. `Ctrl+C` останавливает API; `docker compose stop` останавливает контейнеры без удаления данных. Для повторного запуска: `docker compose up -d --wait`, затем `npm run dev`.
 
 Не запускай `npm init` и не переписывай готовые файлы из урока: они уже в репозитории. Таблицы, колонки и миграции создавай самостоятельно по заданиям. Подготовку запускай после создания нужной структуры. Новые seed-команды добавляют недостающее и не очищают существующие данные; db:clean/reset — отдельные разрушительные действия.
 
-Если порт занят, не завершай чужой процесс наугад: измени левый порт в `docker-compose.yml` и соответствующий адрес в `.env`. PostgreSQL 18 использует volume `/var/lib/postgresql`; не меняй этот путь на старый `/var/lib/postgresql/data` (см. [официальное описание образа](https://github.com/docker-library/docs/blob/master/postgres/README.md)). Для диагностики: `docker compose logs --tail 50 postgres`.
+Если порт занят, не завершай чужой процесс наугад. Для Adminer используй `ADMINER_PORT` и инструкцию выше; не меняй из-за него адрес PostgreSQL. Для PostgreSQL или Redis меняется соответствующий внешний порт в `docker-compose.yml` и адрес подключения в `.env`. PostgreSQL 18 использует volume `/var/lib/postgresql`; не меняй этот путь на старый `/var/lib/postgresql/data` (см. [официальное описание образа](https://github.com/docker-library/docs/blob/master/postgres/README.md)). Для диагностики: `docker compose logs --tail 50 postgres`.
 
 **Важно:** `"private": true` в `package.json` запрещает случайную публикацию npm-пакета. К публичности GitHub-репозитория это поле не относится.
 
