@@ -24,8 +24,15 @@
     "lab:test": "node --test tests/lab/core.test.mjs"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bullmq": "^6.3.17",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "csurf": "^1.11.0",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "express-session": "^1.19.0",
+    "ioredis": "^5.11.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.26",
@@ -33,7 +40,12 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.0.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/csurf": "^1.11.5",
     "@types/express": "^5.0.3",
+    "@types/express-session": "^1.19.0",
     "@types/node": "^24.3.0",
     "@types/pg": "^8.15.5",
     "tsx": "^4.20.5",
