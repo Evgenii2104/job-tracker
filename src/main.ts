@@ -7,6 +7,8 @@ import { db } from './db.js';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
 import {exportsQueue} from "./queue.js";
+import client from 'prom-client';
+import { randomUUID} from "node:crypto";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -19,6 +21,32 @@ const originCheck = (req: express.Request, res: express.Response, next: express.
   }
   next();
 };
+
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+const httpRequestsTotal = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total HTTP requests',
+  labelNames: ['method', 'path', 'status'],
+  registers: [register],
+});
+
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    httpRequestsTotal.inc({
+      method: req.method,
+      path: req.route?.path ?? req.path,
+      status: String(res.statusCode),
+    });
+  });
+  next();
+});
+
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
 
 app.use(cors({
   origin: allowedOrigin,       // явный origin, не '*'
@@ -37,6 +65,12 @@ app.use(session({
   },
 }));
 app.use(originCheck);
+app.use((req, res, next) => {
+  const requestId = (req.headers['x-request-id'] as string) || randomUUID();
+  res.setHeader('X-Request-Id', requestId);
+  (req as any).requestId = requestId;
+  next();
+});
 app.use((req, res, next) => {
   console.log(
       `${req.method} ${req.path}`,
@@ -120,6 +154,42 @@ app.get('/auth/me', async (req, res) => {
   res.json({
     user: { id: String(user.id), name: user.name, email: user.email },
   });
+});
+
+app.get('/jobs', async (req, res) => {
+  const page = Math.max(1, Number(req.query.page ?? 1));
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 10)));
+  const offset = (page - 1) * limit;
+  const q = req.query.q ? String(req.query.q) : null;
+  const company = req.query.company ? String(req.query.company) : null;
+  const sort = req.query.sort === 'created_at_asc' ? 'ASC' : 'DESC';
+
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (q) {
+    params.push(`%${q}%`);
+    conditions.push(`title ILIKE $${params.length}`);
+  }
+  if (company) {
+    params.push(company);
+    conditions.push(`company = $${params.length}`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const totalResult = await db.query(`SELECT COUNT(*)::int AS total FROM jobs ${where}`, params);
+  const total = totalResult.rows[0].total;
+
+  params.push(limit, offset);
+  const itemsResult = await db.query(
+      `SELECT id, title, company, created_at AS "createdAt"
+     FROM jobs ${where}
+     ORDER BY created_at ${sort}, id ${sort}
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+  );
+
+  res.json({ items: itemsResult.rows, total, page, limit });
 });
 
 app.post('/exports', csrfProtection, async (req, res) => {
