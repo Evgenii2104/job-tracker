@@ -9,6 +9,8 @@ import cors from 'cors';
 import {exportsQueue} from "./queue.js";
 import client from 'prom-client';
 import { randomUUID} from "node:crypto";
+import rateLimit from 'express-rate-limit';
+
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -25,6 +27,7 @@ const originCheck = (req: express.Request, res: express.Response, next: express.
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
+
 const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',
   help: 'Total HTTP requests',
@@ -32,13 +35,25 @@ const httpRequestsTotal = new client.Counter({
   registers: [register],
 });
 
+const httpRequestDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'HTTP request duration in seconds',
+  labelNames: ['method', 'path', 'status'],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
+  registers: [register],
+});
+
 app.use((req, res, next) => {
+  const start = Date.now();
   res.on('finish', () => {
-    httpRequestsTotal.inc({
+    const duration = (Date.now() - start) / 1000;
+    const labels = {
       method: req.method,
       path: req.route?.path ?? req.path,
       status: String(res.statusCode),
-    });
+    };
+    httpRequestsTotal.inc(labels);
+    httpRequestDuration.observe(labels, duration);
   });
   next();
 });
@@ -69,6 +84,7 @@ app.use((req, res, next) => {
   const requestId = (req.headers['x-request-id'] as string) || randomUUID();
   res.setHeader('X-Request-Id', requestId);
   (req as any).requestId = requestId;
+  console.log(`[${requestId}] ${req.method} ${req.path}`);
   next();
 });
 app.use((req, res, next) => {
@@ -85,6 +101,15 @@ app.use((req, res, next) => {
 
 const csrfProtection = csrf({
   value: (req) => req.headers['x-csrf-token'] as string || req.headers['csrf-token'] as string,
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many login attempts, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
 
 app.get('/health', async (_req, res) => {
@@ -123,7 +148,7 @@ app.post('/auth/register', csrfProtection, async (req, res) => {
   res.status(201).json({user: result.rows[0]});
 });
 
-app.post('/auth/login', csrfProtection, async (req, res) => {
+app.post('/auth/login', loginLimiter, csrfProtection, async (req, res) => {
   const { email, password } = req.body;
   const result = await db.query('SELECT id, email, name, password_hash FROM users WHERE email = $1', [email],
       );
