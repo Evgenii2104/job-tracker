@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable,OnModuleDestroy, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Export } from './export.entity';
@@ -12,7 +12,7 @@ const connection = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379'
 const exportsQueue = new Queue('exports', { connection });
 
 @Injectable()
-export class ExportsService {
+export class ExportsService implements OnModuleDestroy {
   constructor(
     @InjectRepository(Export)
     private readonly exportsRepo: Repository<Export>,
@@ -48,5 +48,9 @@ export class ExportsService {
       throw new ConflictException('Export not ready');
     }
     return exp;
+  }
+  async onModuleDestroy() {
+    await exportsQueue.close();
+    await connection.quit();
   }
 }

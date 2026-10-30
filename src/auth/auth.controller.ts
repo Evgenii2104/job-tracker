@@ -33,6 +33,7 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() body: any, @Req() req: Request) {
+    console.log('session:', req.session);
     const user = await this.authService.register(body.email, body.name, body.password);
     (req.session as any).userId = Number(user.id);
     return { user };

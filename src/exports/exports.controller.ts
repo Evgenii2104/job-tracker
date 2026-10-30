@@ -4,6 +4,13 @@ import {
 } from '@nestjs/common';
 import { ExportsService } from './exports.service';
 import type { Request, Response } from 'express';
+import csrf from 'csurf';
+import { UseGuards } from '@nestjs/common';
+import { CsrfGuard } from '../common/csrf.guard';
+
+//const csrfProtection = csrf({
+//  value: (req) => req.headers['x-csrf-token'] as string,
+//});
 
 @Controller('exports')
 export class ExportsController {
@@ -11,11 +18,23 @@ export class ExportsController {
 
   @Post()
   @HttpCode(202)
+  @UseGuards(CsrfGuard)
   async create(
     @Body() body: { format?: string },
     @Headers('idempotency-key') idempotencyKey: string,
     @Req() req: Request,
+    //@Res() res: Response,
   ) {
+    //try {
+    //  await new Promise<void>((resolve, reject) => {
+    //    csrfProtection(req as any, res as any, (err: any) => {
+    //      if (err) reject(err);
+    //      else resolve();
+    //    });
+    //  });
+    //} catch {
+    //  return res.status(403).json({ error: 'Invalid CSRF token' });
+    //}
     const userId = (req.session as any).userId;
     if (!userId) throw new UnauthorizedException('Not authenticated');
     if (!idempotencyKey) throw new UnauthorizedException('Idempotency-Key required');
